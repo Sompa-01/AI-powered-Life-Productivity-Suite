@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Life Productivity Suite — Dashboard</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Chart.js and Tesseract (CDNs) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@v4.0.2/dist/tesseract.min.js"></script>
+
+  <!-- Local CSS -->
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo"></div>
+        <div>
+          <div style="font-size:16px">AI Life Suite</div>
+          <div class="tag">Productivity Dashboard</div>
+        </div>
+      </div>
+
+      <div class="nav">
+        <button class="active" data-target="dashboard">📊 Dashboard</button>
+        <button data-target="expenses">💸 Expenses</button>
+        <button data-target="interview">🧠 Interview Qs</button>
+        <button data-target="playlist">🎵 Emotion Playlist</button>
+        <button data-target="medical">🩺 Medical + Reminders</button>
+        <button data-target="settings">⚙️ Settings</button>
+      </div>
+
+      <div class="meta">
+        <p>💡 Tip: Correct mis-categorised expense — the categoriser learns keywords.</p>
+        <p style="margin-top:10px">Theme: <button id="themeToggle" class="btn ghost" style="padding:6px 10px">Toggle</button></p>
+      </div>
+    </aside>
+
+    <main class="content">
+      <header>
+        <div class="search">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/>
+          </svg>
+          <input id="search" placeholder="Search expenses, modules, anything…" />
+        </div>
+        <button id="quickAdd" class="btn">+ Quick Add Expense</button>
+      </header>
+
+      <!-- DASHBOARD -->
+      <section id="dashboard" class="modules active">
+        <div class="kpis">
+          <div class="card">
+            <h4>This Month Spend</h4>
+            <div class="value" id="kpiSpend">₹0</div>
+            <div class="badges"><span class="badge" id="kpiTransactions">0 transactions</span></div>
+          </div>
+          <div class="card">
+            <h4>Savings Forecast</h4>
+            <div class="value" id="kpiSavings">₹0</div>
+            <span class="pill" id="forecastNote">Forecast based on daily avg</span>
+          </div>
+          <div class="card">
+            <h4>End-of-Month Spend (Forecast)</h4>
+            <div class="value" id="kpiForecast">₹0</div>
+            <span class="pill" id="kpiBudget">Budget: ₹0</span>
+          </div>
+          <div class="card">
+            <h4>Alerts</h4>
+            <div id="alerts"></div>
+          </div>
+        </div>
+
+        <div class="grid">
+          <div class="card">
+            <div class="section-title"><h3 style="margin:0">📈 Monthly Trend</h3>
+              <div class="badges"><span class="badge" id="monthName"></span></div>
+            </div>
+            <canvas id="trendChart" height="120"></canvas>
+          </div>
+          <div class="card">
+            <div class="section-title"><h3 style="margin:0">🥧 Category Split</h3></div>
+            <canvas id="pieChart" height="120"></canvas>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:16px">
+          <div class="section-title"><h3 style="margin:0">🧾 Recent Expenses</h3>
+            <div class="badges"><span class="badge">Click a category to edit</span></div>
+          </div>
+          <div style="overflow:auto">
+            <table id="expenseTable">
+              <thead><tr>
+                <th>Date</th><th>Description</th><th>Category</th><th>Amount</th><th></th>
+              </tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- EXPENSES -->
+      <section id="expenses" class="modules">
+        <div class="card">
+          <h3 style="margin-top:0">Add Expense</h3>
+          <form id="expenseForm" class="form">
+            <div class="field"><label>Amount</label><input type="number" step="0.01" id="amount" class="input" placeholder="e.g. 249" required></div>
+            <div class="field"><label>Description</label><input id="desc" class="input" placeholder="e.g. Zomato order" required></div>
+            <div class="field"><label>Date</label><input type="date" id="date" class="input" required></div>
+            <div class="field"><label>Predicted Category</label>
+              <select id="category"></select>
+            </div>
+            <div class="field" style="grid-column:1/-1"><label>Receipt (optional, OCR)</label>
+              <input type="file" id="receipt" accept="image/*" class="input" />
+              <div class="badges" style="margin-top:6px"><span class="badge">Uses Tesseract.js in-browser</span></div>
+            </div>
+            <div style="grid-column:1/-1; display:flex; gap:10px; align-items:center">
+              <button class="btn" type="submit">Save Expense</button>
+              <button type="button" id="btnCategorise" class="btn secondary">AI Categorise</button>
+              <div id="ocrStatus" class="pill">OCR idle</div>
+            </div>
+          </form>
+        </div>
+
+        <div class="card" style="margin-top:16px">
+          <div class="section-title"><h3 style="margin:0">All Expenses</h3>
+            <div class="badges"><span class="badge" id="totalCount">0 items</span></div>
+          </div>
+          <div style="overflow:auto">
+            <table id="expenseTableFull">
+              <thead><tr>
+                <th>Date</th><th>Description</th><th>Category</th><th>Amount</th><th></th>
+              </tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- INTERVIEW -->
+      <section id="interview" class="modules">
+        <div class="card">
+          <h3 style="margin-top:0">AI Interview Question Generator</h3>
+          <div class="form">
+            <div class="field"><label>Role / Domain</label><input id="role" class="input" placeholder="Data Analyst, Frontend, ML…"></div>
+            <div class="field"><label>Skills / Keywords</label><input id="skills" class="input" placeholder="SQL, Pandas, A/B testing"></div>
+            <div class="field"><label>Difficulty</label>
+              <select id="difficulty" class="input"><option>Easy</option><option>Medium</option><option>Hard</option></select>
+            </div>
+            <div class="field"><label>How many?</label><input id="count" type="number" min="3" max="20" value="8" class="input"></div>
+          </div>
+          <div style="margin-top:10px"><button id="genQs" class="btn">Generate Questions</button>
+            <button id="copyQs" class="btn secondary">Copy</button>
+          </div>
+        </div>
+        <div class="card" style="margin-top:16px">
+          <h4>Questions</h4>
+          <ol id="questions" style="line-height:1.6"></ol>
+        </div>
+      </section>
+
+      <!-- PLAYLIST -->
+      <section id="playlist" class="modules">
+        <div class="card">
+          <h3 style="margin-top:0">Emotion-Based Playlist Generator</h3>
+          <div class="form">
+            <div class="field"><label>Mood</label>
+              <select id="mood" class="input">
+                <option>Focus</option>
+                <option>Happy</option>
+                <option>Calm</option>
+                <option>Sad</option>
+                <option>Energetic</option>
+                <option>Romantic</option>
+              </select></div>
+            <div class="field"><label>Length</label><input id="songsCount" type="number" min="5" max="25" value="10" class="input"></div>
+          </div>
+          <div style="margin-top:10px"><button id="genPlaylist" class="btn">Generate Playlist</button></div>
+        </div>
+        <div class="card" style="margin-top:16px">
+          <h4>Recommendations</h4>
+          <ul id="playlistList" style="line-height:1.8"></ul>
+        </div>
+      </section>
+
+      <!-- MEDICAL -->
+      <section id="medical" class="modules">
+        <div class="card">
+          <h3 style="margin-top:0">Medical Assistant + Reminders</h3>
+          <div class="form">
+            <div class="field"><label>Medication / Task</label><input id="medName" class="input" placeholder="Paracetamol 500mg"></div>
+            <div class="field"><label>Notes / Dosage</label><input id="medNotes" class="input" placeholder="After lunch"></div>
+            <div class="field"><label>Time</label><input id="medTime" type="time" class="input"></div>
+            <div class="field"><label>Start Date</label><input id="medDate" type="date" class="input"></div>
+          </div>
+          <div style="margin-top:10px; display:flex; gap:10px"><button id="addMed" class="btn">Add Reminder</button>
+            <button id="enableNotif" class="btn secondary">Enable Notifications</button></div>
+        </div>
+        <div class="card" style="margin-top:16px">
+          <h4>Upcoming Reminders</h4>
+          <ul id="medList" style="line-height:1.8"></ul>
+        </div>
+        <div class="footer-note">Reminders run in-page. Keep this tab open for on-time notifications.</div>
+      </section>
+
+      <!-- SETTINGS -->
+      <section id="settings" class="modules">
+        <div class="card">
+          <h3 style="margin-top:0">Suite Settings</h3>
+          <div class="form">
+            <div class="field"><label>Currency Symbol</label><input id="currency" class="input" maxlength="3" value="₹"></div>
+            <div class="field"><label>Monthly Budget</label><input id="budget" class="input" type="number" value="25000"></div>
+            <div class="field"><label>Start Week On</label>
+              <select id="weekStart" class="input"><option value="1">Mon</option><option value="0">Sun</option></select>
+            </div>
+            <div class="field"><label>Data</label>
+              <button id="seedDemo" class="btn ghost">Seed Demo Data</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- app script -->
+  <script src="app.js"></script>
+</body>
+</html>
